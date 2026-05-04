@@ -1,4 +1,4 @@
-package ru.otus.cryptosample.coins.feature.adapter
+package ru.otus.cryptosample.coins.feature.adapter.child
 
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible

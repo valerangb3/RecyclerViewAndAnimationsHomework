@@ -1,9 +1,10 @@
-package ru.otus.cryptosample.coins.feature.adapter
+package ru.otus.cryptosample.coins.feature.adapter.child
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import ru.otus.cryptosample.coins.feature.CoinCategoryState
+import ru.otus.cryptosample.coins.feature.adapter.child.CoinsAdapterItem
 import ru.otus.cryptosample.databinding.ItemCategoryHeaderBinding
 import ru.otus.cryptosample.databinding.ItemCoinBinding
 
@@ -15,8 +16,20 @@ class CoinsAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     }
     
     private var items = listOf<CoinsAdapterItem>()
-    
-    fun setData(categories: List<CoinCategoryState>) {
+
+    fun setData(category: CoinCategoryState) {
+        val adapterItems = mutableListOf<CoinsAdapterItem>()
+
+        adapterItems.add(CoinsAdapterItem.CategoryHeader(category.name))
+        category.coins.forEach { coinState ->
+            adapterItems.add(CoinsAdapterItem.CoinItem(coinState))
+        }
+
+        items = adapterItems
+        notifyDataSetChanged()
+    }
+
+    fun ___oldSetData(categories: List<CoinCategoryState>) {
         val adapterItems = mutableListOf<CoinsAdapterItem>()
         
         categories.forEach { category ->

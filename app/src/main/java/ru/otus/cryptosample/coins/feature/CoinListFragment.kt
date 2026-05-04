@@ -13,7 +13,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.GridLayoutManager
 import kotlinx.coroutines.launch
 import ru.otus.cryptosample.CoinsSampleApp
-import ru.otus.cryptosample.coins.feature.adapter.CoinsAdapter
+import ru.otus.cryptosample.coins.feature.adapter.parent.CategoryAdapter
 import ru.otus.cryptosample.coins.feature.di.DaggerCoinListComponent
 import ru.otus.cryptosample.databinding.FragmentCoinListBinding
 import javax.inject.Inject
@@ -28,7 +28,7 @@ class CoinListFragment : Fragment() {
 
     private val viewModel: CoinListViewModel by viewModels { factory }
 
-    private lateinit var coinsAdapter: CoinsAdapter
+    private lateinit var categoryAdapter: CategoryAdapter
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -59,6 +59,26 @@ class CoinListFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
+        categoryAdapter = CategoryAdapter()
+
+        val gridLayoutManager = GridLayoutManager(requireContext(), 2)
+        gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+            override fun getSpanSize(position: Int): Int {
+                return when (categoryAdapter.getItemViewType(position)) {
+                    0 -> 2 // Category header spans full width
+                    1 -> 1 // Coin item spans half width
+                    else -> 1
+                }
+            }
+        }
+
+        binding.recyclerView.apply {
+            layoutManager = gridLayoutManager
+            adapter = categoryAdapter
+        }
+    }
+
+    /*private fun __setupRecyclerView() {
         coinsAdapter = CoinsAdapter()
 
         val gridLayoutManager = GridLayoutManager(requireContext(), 2)
@@ -76,7 +96,7 @@ class CoinListFragment : Fragment() {
             layoutManager = gridLayoutManager
             adapter = coinsAdapter
         }
-    }
+    }*/
 
     private fun setupChipToggle() {
         binding.highlightChip.setOnCheckedChangeListener { _, isChecked ->
@@ -99,7 +119,8 @@ class CoinListFragment : Fragment() {
     }
 
     private fun renderState(state: CoinsScreenState) {
-        coinsAdapter.setData(state.categories)
+        //coinsAdapter.___oldSetData(state.categories)
+        categoryAdapter.setData(state.categories)
     }
 
     override fun onDestroyView() {
