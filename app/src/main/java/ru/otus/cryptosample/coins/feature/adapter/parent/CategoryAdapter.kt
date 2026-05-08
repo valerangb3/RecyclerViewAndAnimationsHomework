@@ -3,83 +3,224 @@ package ru.otus.cryptosample.coins.feature.adapter.parent
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ru.otus.cryptosample.coins.feature.CoinCategoryState
+import ru.otus.cryptosample.coins.feature.CoinState
+import ru.otus.cryptosample.coins.feature.adapter.child.CategoryHeaderViewHolder
 import ru.otus.cryptosample.coins.feature.adapter.child.CoinsAdapter
-import ru.otus.cryptosample.coins.feature.adapter.child.CoinsAdapterItem
+import ru.otus.cryptosample.coins.feature.adapter.common.FadeSideAnimator
+import ru.otus.cryptosample.coins.feature.adapter.common.ViewTypes
+import ru.otus.cryptosample.databinding.ItemCategoryHeaderBinding
 import ru.otus.cryptosample.databinding.ItemRvBinding
 
 enum class ListType {
     HORIZONTAL, VERTICAL;
 }
 
-class CategoryAdapter : RecyclerView.Adapter<CategoryAdapter.CategoryViewHolder>() {
-    private var items = listOf<CategoryAdapterItem>()
-    private var listType: ListType = ListType.VERTICAL
+class CategoryAdapter(
+    private val viewPool: RecyclerView.RecycledViewPool,
+    private val viewTypes: ViewTypes
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    fun setListType(type: ListType) {
-        listType = type
+    private companion object {
+        private const val THRESHOLD = 10
     }
 
-    fun setData(categories: List<CoinCategoryState>) {
-        //TODO нужно хранить исходны список. з.ы. flat list не подойдет
-        val adapterItems = mutableListOf<CategoryAdapterItem>()
+    var items = listOf<CategoryAdapterItem>()
+        private set
+    var categories: List<CoinCategoryState> = emptyList()
+        private set
+    private var listType: ListType = ListType.VERTICAL
+    private val innerAdapters = mutableMapOf<String, CoinsAdapter>()
+    private val innerAnimators = mutableMapOf<String, FadeSideAnimator>()
 
+    private fun getOrCreateAnimator(name: String): FadeSideAnimator {
+        return innerAnimators.getOrPut(name) {
+            FadeSideAnimator().apply { addDuration = 700; removeDuration = 700 }
+        }
+    }
+
+    fun setData(categories: List<CoinCategoryState>, type: ListType) {
+        listType = type
+        this.categories = categories
+        val adapterItems = mutableListOf<CategoryAdapterItem>()
         categories.forEach { category ->
+            adapterItems.add(CategoryAdapterItem.CategoryTitle(category.name))
             adapterItems.add(
-                CategoryAdapterItem.CategoryItem(
-                    category = category.copy()
+                CategoryAdapterItem.Categories(
+                    data = category.coins.map { it },
+                    name = category.name
                 )
             )
         }
 
         items = adapterItems
-        notifyDataSetChanged()
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        return when (val item = items[position]) {
+            is CategoryAdapterItem.CategoryTitle -> viewTypes.TITLE_VIEW
+            is CategoryAdapterItem.Categories -> {
+                if (isHorizontalScroll(item.data))
+                    viewTypes.LIST_VIEW_HORIZONTAL
+                else
+                    viewTypes.LIST_VIEW_VERTICAL
+            }
+        }
     }
 
     override fun getItemCount(): Int {
         return items.size
     }
 
-    override fun onBindViewHolder(holder: CategoryViewHolder, position: Int) {
-        holder.bind(items[position])
+    private fun isHorizontalScroll(data: List<CoinState>): Boolean {
+        return listType == ListType.HORIZONTAL && data.size > THRESHOLD
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CategoryViewHolder {
-        return CategoryViewHolder(
-            ItemRvBinding.inflate(
-                LayoutInflater.from(parent.context),
-                parent,
-                false
-            )
-        )
-    }
-
-    class CategoryViewHolder(private val binding: ItemRvBinding) : RecyclerView.ViewHolder(binding.root) {
-        val coinsAdapter = CoinsAdapter()
-
-        fun bind(coinCategoryState: CategoryAdapterItem) {
-            //todo долделать имплементацию определения какой будет режим отображения
-            binding.childRv.adapter = coinsAdapter
-            if (coinCategoryState is CategoryAdapterItem.CategoryItem) {
-                coinsAdapter.setData(coinCategoryState.category)
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        when (holder) {
+            is CategoryHorizontalViewHolder -> {
+                val categories = items[position] as CategoryAdapterItem.Categories
+                val innerAdapter = innerAdapters.getOrPut(categories.name) { CoinsAdapter(ViewTypes) }
+                holder.bind(
+                    innerAdapter,
+                    categories.data,
+                    isHorizontalScroll(categories.data)
+                )
             }
-            binding.childRv.layoutManager = getLayoutManager()
+            is CategoryVerticalViewHolder -> {
+                val categories = items[position] as CategoryAdapterItem.Categories
+                val innerAdapter = innerAdapters.getOrPut(categories.name) { CoinsAdapter(ViewTypes) }
+                val fa = getOrCreateAnimator(categories.name)
+                holder.bind(
+                    innerAdapter,
+                    categories.data,
+                    fa,
+                    isHorizontalScroll(categories.data)
+                )
+            }
+            is CategoryHeaderViewHolder -> {
+                val categoryTitle = items[position] as CategoryAdapterItem.CategoryTitle
+                holder.bind(categoryTitle.name)
+            }
         }
+    }
 
-        private fun getLayoutManager(): RecyclerView.LayoutManager {
-            val gridLayoutManager = GridLayoutManager(binding.root.context, 2)
-            gridLayoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
-                override fun getSpanSize(position: Int): Int {
-                    return when (coinsAdapter.getItemViewType(position)) {
-                        0 -> 2 // Category header spans full width
-                        1 -> 1 // Coin item spans half width
-                        else -> 1
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return when (viewType) {
+            viewTypes.LIST_VIEW_VERTICAL -> {
+                val vBinding = ItemRvBinding.inflate(
+                    LayoutInflater.from(parent.context),
+                    parent,
+                    false
+                ).apply {
+                    childRv.apply {
+                        setRecycledViewPool(viewPool)
+                    }
+                }
+                CategoryVerticalViewHolder(vBinding)
+            }
+            viewTypes.LIST_VIEW_HORIZONTAL -> {
+                val vBinding = ItemRvBinding.inflate(
+                    LayoutInflater.from(parent.context),
+                    parent,
+                    false
+                ).apply {
+                    childRv.apply {
+                        setRecycledViewPool(viewPool)
+                    }
+                }
+                CategoryHorizontalViewHolder(vBinding)
+            }
+            viewTypes.TITLE_VIEW -> CategoryHeaderViewHolder(
+                ItemCategoryHeaderBinding.inflate(
+                    LayoutInflater.from(parent.context),
+                    parent,
+                    false
+                )
+            )
+            else -> throw IllegalArgumentException("Unknown view type: $viewType")
+        }
+    }
+
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+        payloads: List<Any?>,
+    ) {
+        if (payloads.isNotEmpty()) {
+            for (payload in payloads) {
+                if (payload == "INNER_DATA_CHANGED") {
+                    val categories = items[position] as CategoryAdapterItem.Categories
+                    val innerAdapter = innerAdapters.getOrPut(categories.name) { CoinsAdapter(ViewTypes) }
+                    if (holder is CategoryHorizontalViewHolder) {
+                        holder.bind(
+                            innerAdapter,
+                            categories.data,
+                            isHorizontalScroll(categories.data)
+                        )
+                    }
+                    if (holder is CategoryVerticalViewHolder) {
+                        innerAdapter.setData(categories.data)
                     }
                 }
             }
-            gridLayoutManager.orientation = RecyclerView.VERTICAL
-            return gridLayoutManager
+        } else {
+            onBindViewHolder(holder, position)
+        }
+    }
+
+
+    class CategoryVerticalViewHolder(private val binding: ItemRvBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(
+            coinsAdapter: CoinsAdapter,
+            coins: List<CoinState>,
+            fadeSideAnimator: FadeSideAnimator,
+            isHorizontal: Boolean
+        ) {
+            if (binding.childRv.adapter != coinsAdapter) {
+                binding.childRv.adapter = coinsAdapter
+            }
+            coinsAdapter.isHorizontal = isHorizontal
+            if (binding.childRv.itemAnimator != fadeSideAnimator) {
+                binding.childRv.itemAnimator = fadeSideAnimator
+            }
+            if (binding.childRv.layoutManager !is GridLayoutManager) {
+                binding.childRv.itemAnimator?.endAnimations()
+                binding.childRv.apply {
+                    layoutManager = GridLayoutManager( binding.root.context, 2)
+                }
+            }
+            coinsAdapter.setData(coins)
+        }
+    }
+
+    class CategoryHorizontalViewHolder(private val binding: ItemRvBinding) : RecyclerView.ViewHolder(binding.root) {
+
+        fun bind(
+            coinsAdapter: CoinsAdapter,
+            coins: List<CoinState>,
+            isHorizontal: Boolean
+        ) {
+
+            if (binding.childRv.adapter != coinsAdapter) {
+                binding.childRv.adapter = coinsAdapter
+            }
+            coinsAdapter.isHorizontal = isHorizontal
+
+            if (binding.childRv.layoutManager !is CarouselLayoutManager) {
+                binding.childRv.itemAnimator?.endAnimations()
+                binding.childRv.apply {
+                    layoutManager = CarouselLayoutManager(
+                        binding.root.context,
+                        LinearLayoutManager.HORIZONTAL,
+                        false
+                    )
+                }
+            }
+
+            coinsAdapter.setData(coins)
         }
     }
 }

@@ -68,6 +68,11 @@ class CoinListViewModel(
             })
         }
 
-        _state.update { it.copy(categories = processedCategories) }
+        _state.update {
+            it.copy(
+                categories = processedCategories,
+                showAll = showAll
+            )
+        }
     }
 }

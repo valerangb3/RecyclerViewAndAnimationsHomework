@@ -12,6 +12,10 @@ class CoinViewHolder(
     private val binding: ItemCoinBinding
 ) : RecyclerView.ViewHolder(binding.root) {
 
+    fun badgeUpdate(isVisible: Boolean) {
+        binding.fireBadge.isVisible = isVisible
+    }
+
     fun bind(coin: CoinState) {
         with(binding) {
             coinName.text = coin.name
@@ -30,7 +34,7 @@ class CoinViewHolder(
                 error(R.drawable.generic)
             }
 
-            fireBadge.isVisible = coin.highlight
+            badgeUpdate(coin.highlight)
         }
     }
 }

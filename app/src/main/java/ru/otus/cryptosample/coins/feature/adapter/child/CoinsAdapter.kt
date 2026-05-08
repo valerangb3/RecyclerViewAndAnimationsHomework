@@ -2,83 +2,76 @@ package ru.otus.cryptosample.coins.feature.adapter.child
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
-import ru.otus.cryptosample.coins.feature.CoinCategoryState
-import ru.otus.cryptosample.coins.feature.adapter.child.CoinsAdapterItem
-import ru.otus.cryptosample.databinding.ItemCategoryHeaderBinding
+import ru.otus.cryptosample.coins.feature.CoinState
+import ru.otus.cryptosample.coins.feature.adapter.common.CoinDiffUtils
+import ru.otus.cryptosample.coins.feature.adapter.common.ViewTypes
 import ru.otus.cryptosample.databinding.ItemCoinBinding
 
-class CoinsAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-    
-    companion object {
-        private const val VIEW_TYPE_CATEGORY = 0
-        private const val VIEW_TYPE_COIN = 1
-    }
-    
-    private var items = listOf<CoinsAdapterItem>()
+class CoinsAdapter(
+    private val viewTypes: ViewTypes
+) : RecyclerView.Adapter<CoinViewHolder>() {
+    var isHorizontal: Boolean = false
+    var items = listOf<CoinItem>()
+        private set
 
-    fun setData(category: CoinCategoryState) {
-        val adapterItems = mutableListOf<CoinsAdapterItem>()
+    fun setData(coins: List<CoinState>) {
+        val oldCoins = items
+        val adapterItems = mutableListOf<CoinItem>()
 
-        adapterItems.add(CoinsAdapterItem.CategoryHeader(category.name))
-        category.coins.forEach { coinState ->
-            adapterItems.add(CoinsAdapterItem.CoinItem(coinState))
+        coins.forEach { coinState ->
+            adapterItems.add(CoinItem(coinState))
         }
 
+        val coinsDiffUtilsCallback = CoinDiffUtils(oldCoins, adapterItems.toList())
         items = adapterItems
-        notifyDataSetChanged()
+        val diff = DiffUtil.calculateDiff(coinsDiffUtilsCallback)
+        diff.dispatchUpdatesTo(this)
     }
 
-    fun ___oldSetData(categories: List<CoinCategoryState>) {
-        val adapterItems = mutableListOf<CoinsAdapterItem>()
-        
-        categories.forEach { category ->
-            adapterItems.add(CoinsAdapterItem.CategoryHeader(category.name))
-            category.coins.forEach { coin ->
-                adapterItems.add(CoinsAdapterItem.CoinItem(coin))
-            }
-        }
-        
-        items = adapterItems
-        notifyDataSetChanged()
+    override fun getItemViewType(position: Int): Int {
+        return viewTypes.ITEM_VIEW
     }
     
     override fun getItemCount(): Int = items.size
     
-    override fun getItemViewType(position: Int): Int {
-        return when (items[position]) {
-            is CoinsAdapterItem.CategoryHeader -> VIEW_TYPE_CATEGORY
-            is CoinsAdapterItem.CoinItem -> VIEW_TYPE_COIN
-        }
-    }
-    
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        return when (viewType) {
-            VIEW_TYPE_CATEGORY -> CategoryHeaderViewHolder(
-                ItemCategoryHeaderBinding.inflate(
-                    LayoutInflater.from(parent.context),
-                    parent,
-                    false
-                )
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CoinViewHolder {
+        return CoinViewHolder(
+            ItemCoinBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false
             )
-            VIEW_TYPE_COIN -> CoinViewHolder(
-                ItemCoinBinding.inflate(
-                    LayoutInflater.from(parent.context),
-                    parent,
-                    false
-                )
-            )
-            else -> throw IllegalArgumentException("Unknown view type: $viewType")
-        }
+        )
     }
-    
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        when (val item = items[position]) {
-            is CoinsAdapterItem.CategoryHeader -> {
-                (holder as CategoryHeaderViewHolder).bind(item.categoryName)
-            }
-            is CoinsAdapterItem.CoinItem -> {
-                (holder as CoinViewHolder).bind(item.coin)
+
+    override fun onBindViewHolder(holder: CoinViewHolder, position: Int) {
+        val layoutParams = holder.itemView.layoutParams
+
+        if (isHorizontal) {
+            // Режим карусели: вычисляем 2.5 карточки
+            val screenWidth = holder.itemView.context.resources.displayMetrics.widthPixels
+            layoutParams.width = (screenWidth / 2.5).toInt()
+        } else {
+            // Режим сетки: карточка должна занимать всю выделенную ей ячейку
+            layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+        }
+
+        holder.itemView.layoutParams = layoutParams
+        val item = items[position]
+        holder.bind(item.coin)
+    }
+
+    override fun onBindViewHolder(holder: CoinViewHolder, position: Int, payloads: List<Any>) {
+        val item = items[position]
+        if (payloads.isEmpty()) {
+            onBindViewHolder(holder, position)
+        } else {
+            for (payload in payloads) {
+                if (payload == "HIGHLIGHT_UPDATED") {
+                    holder.badgeUpdate(item.coin.highlight)
+                }
             }
         }
     }
