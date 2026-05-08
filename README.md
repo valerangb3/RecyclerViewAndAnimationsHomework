@@ -44,3 +44,7 @@
 Чтобы сдать работу:  
 - селайте Pull Request  
 - приложите скриншоты или видео (лучше) к Pull Request'у
+
+
+## Результат
+<video src="https://github.com/user-attachments/assets/1155ed2a-9af5-4806-a5fd-bc0ec7a8767f"/>
