@@ -47,4 +47,5 @@
 
 
 ## Результат
-<video src="https://github.com/user-attachments/assets/1155ed2a-9af5-4806-a5fd-bc0ec7a8767f"/>
+
+<video src="https://github.com/user-attachments/assets/76b44777-6129-41ea-b8b0-7cd0b48e06c8"/>
