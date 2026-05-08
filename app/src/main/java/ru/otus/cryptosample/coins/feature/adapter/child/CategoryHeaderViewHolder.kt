@@ -1,4 +1,4 @@
-package ru.otus.cryptosample.coins.feature.adapter
+package ru.otus.cryptosample.coins.feature.adapter.child
 
 import androidx.recyclerview.widget.RecyclerView
 import ru.otus.cryptosample.databinding.ItemCategoryHeaderBinding
